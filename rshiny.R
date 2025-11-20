@@ -3,9 +3,10 @@
 
 # Loading package to deploy app
 library(rsconnect)
+library(gtrendsR)
 
 # Use credentials for deployment, run to authenticate (you should only need to do this once)
-rsconnect::setAccountInfo(name='', # Add shinyapps username
+rsconnect::setAccountInfo(name='bornitac', 'as4826', # Add shinyapps username
                           token='', # Add shinyapps token
                           secret='') # Add shinyapps secret
 # Warning: Do not publish these credentials publicly (e.g. on Github)
