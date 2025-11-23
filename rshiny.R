@@ -8,6 +8,8 @@
                          # token='13BB915FAD2F40A0BB8178BA37285F0', # Add shinyapps token
                           #secret='0t6Tp4IJ3iZ7/Abjf+nZ/jBUe4H3MLAYtlpc9EU') # Add shinyapps secret
 # Warning: Do not publish these credentials publicly (e.g. on Github)
+library(sf)
+library(dplyr)
 library(shiny)
 library(gtrendsR)
 library(tidyverse)
@@ -19,15 +21,10 @@ library(sp)
 # Build a US states polygon object
 # -------------------------------------
 
-# Get state polygons
-states_map <- map("state", fill = TRUE, plot = FALSE)
-
-# Convert to SpatialPolygons
-IDs <- sapply(strsplit(states_map$names, ":"), "[[", 1)
-states_sp <- map2SpatialPolygons(states_map, IDs = IDs, proj4string = CRS("+proj=longlat +datum=WGS84"))
-
-# Convert to dataframe with state names
-states_df <- data.frame(state_name = unique(IDs), row.names = unique(IDs))
+# Build US state polygons using modern sf syntax
+states_sf <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
+states_sf <- st_transform(states_sf, crs = 4326)
+states_sf$state_name <- states_sf$ID   # creates a matching name column
 
 # -------------------------------------
 # UI
@@ -36,17 +33,24 @@ ui <- fluidPage(
   titlePanel("SMM: Social Media Misinformation Tracker"),
   
   sidebarLayout(
-    sidebarPanel(
-      textInput("keyword", "Enter a topic:", "autism tylenol"),
-      actionButton("go", "Search"),
-      br(), br(),
-      helpText("Shows Google Trends search interest in the past 5 years.")
-    ),
+  sidebarPanel(
+    textInput("keyword", "Enter a topic:", "autism tylenol"),
+    actionButton("go", "Search"),
+    br(), br(),
+    helpText("Shows Google Trends search interest in the past 5 years."),
+    hr(),
+    verbatimTextOutput("summary_stats")   # <-- NEW: summary of the trend
+  ),
     
     mainPanel(
       tabsetPanel(
         tabPanel("Trend Over Time", plotOutput("trendPlot")),
-        tabPanel("US Map", leafletOutput("usMap"))
+        tabPanel("US Map", leafletOutput("usMap")),
+        tabPanel(
+          "README",
+          h3("About SMM: Social Media Misinformation Tracker"),
+          p("This prototype app uses Google Trends data to explore how interest in misinformation topics changes over time.")
+        )
       )
     )
   )
@@ -76,13 +80,28 @@ server <- function(input, output, session) {
       select(state_name, interest)
     
     # Merge region data into spatial polygons
-    states_df2 <- states_df %>%
+    states_sf2 <- states_sf %>%
       left_join(geo_df, by = "state_name")
     
-    # Attach merged data to spatial object
-    states_spdf <- SpatialPolygonsDataFrame(states_sp, data = states_df2, match.ID = TRUE)
+    list(time = time_df, map = states_sf2)
+  })
+  
+  # Summary stats in sidebar
+  output$summary_stats <- renderText({
+    req(trends()$time)
     
-    list(time = time_df, map = states_spdf)
+    df <- trends()$time
+    
+    avg_hits <- mean(df$hits, na.rm = TRUE)
+    max_hits <- max(df$hits, na.rm = TRUE)
+    min_hits <- min(df$hits, na.rm = TRUE)
+    
+    paste0(
+      "Summary for '", input$keyword, "':\n",
+      "Average interest: ", round(avg_hits, 2), "\n",
+      "Peak interest: ", round(max_hits, 2), "\n",
+      "Minimum interest: ", round(min_hits, 2)
+    )
   })
   
   # -----------------------
@@ -107,9 +126,10 @@ server <- function(input, output, session) {
     
     pal <- colorNumeric("viridis", domain = trends()$map$interest)
     
-    leaflet(trends()$map) %>%
+    leaflet() %>%
       addTiles() %>%
       addPolygons(
+        data = trends()$map,
         fillColor = ~pal(interest),
         fillOpacity = 0.8,
         weight = 1,
@@ -129,5 +149,5 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 
 # Run to deploy app to the web
-rsconnect::deployApp(appDir="/~/Computationalss/Computationalss/rshiny.R", # Replace with path to app folder
-                     appName = "SMM") # Replace with app name
+#rsconnect::deployApp(appDir="/~/Computationalss/Computationalss/rshiny.R", # Replace with path to app folder
+                    # appName = "SMM") # Replace with app name
