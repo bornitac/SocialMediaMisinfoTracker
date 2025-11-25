@@ -33,7 +33,7 @@ ui <- fluidPage(
       br(), br(),
       helpText("Shows Google Trends search interest in the past 5 years."),
       hr(),
-      verbatimTextOutput("summary_stats")   # <-- NEW: summary of the trend
+      verbatimTextOutput("summary_stats")   
     ),
     
     mainPanel(
