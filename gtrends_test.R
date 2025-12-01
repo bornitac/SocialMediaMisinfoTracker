@@ -66,6 +66,8 @@ region_df <- e$interest_by_region %>%
 
 write_csv(region_df, "data/election_fraud_2016_fraud_region.csv")
 
+#3rd Topic: 9/11 Conspiracy
+#4th Topic: Pizzagate
 
 
 
