@@ -6,4 +6,3 @@ interest in these conspiracies has changed over the past 5 years.
 This app includes:
 - A time-series plot📈 which shows the trends in spikes
 - A state-level map 🗺️ which shows differences in searches across states
-- Quick summary statistics to help make sense of the spikes
