@@ -67,7 +67,68 @@ region_df <- e$interest_by_region %>%
 write_csv(region_df, "data/election_fraud_2016_fraud_region.csv")
 
 #3rd Topic: 9/11 Conspiracy
+nineeleven <- "9/11 conspiracy"
+
+n11 <- gtrends(
+  keyword = nineeleven,
+  geo = "US",
+  time = "today+5-y"
+)
+
+# Results
+str(n11$interest_over_time)
+str(n11$interest_by_region)
+
+# Time series
+time_df <- n11$interest_over_time %>%
+  mutate(
+    hits = as.numeric(hits),
+    date = as.Date(date)
+  )
+
+write_csv(time_df, "data/nine_eleven_conspiracy_time.csv")
+
+# Region data
+region_df <- n11$interest_by_region %>%
+  mutate(
+    state_name = tolower(location),
+    interest   = as.numeric(hits)
+  ) %>%
+  select(state_name, interest)
+
+write_csv(region_df, "data/nine_eleven_conspiracy_region.csv")
+
 #4th Topic: Pizzagate
+pizzagate <- "pizzagate"
+
+pg <- gtrends(
+  keyword = pizzagate,
+  geo = "US",
+  time = "today+5-y"
+)
+
+# Results
+str(pg$interest_over_time)
+str(pg$interest_by_region)
+
+# Time series
+time_df <- pg$interest_over_time %>%
+  mutate(
+    hits = as.numeric(hits),
+    date = as.Date(date)
+  )
+
+write_csv(time_df, "data/pizzagate_time.csv")
+
+# Region data
+region_df <- pg$interest_by_region %>%
+  mutate(
+    state_name = tolower(location),
+    interest   = as.numeric(hits)
+  ) %>%
+  select(state_name, interest)
+
+write_csv(region_df, "data/pizzagate_region.csv")
 
 #Anika Topics 
 

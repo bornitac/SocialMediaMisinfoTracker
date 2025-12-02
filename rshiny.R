@@ -17,6 +17,19 @@ library(leaflet)
 library(maps)
 library(sp)
 
+# Preset misinformation-related topics
+topics <- c(
+  "🧪 COVID vaccine side effects"    = "covid vaccine side effects",
+  "🗳️ Election fraud 2016"           = "election fraud 2016",
+  "🛰️ Flat Earth"                    = "flat earth",
+  "🌫️ Chemtrails"                    = "chemtrails",
+  "🔥 Climate change hoax"            = "climate change hoax",
+  "🌀 QAnon"                          = "qanon",
+  "💊 Big Pharma hiding cures"        = "big pharma cures",
+  "🕵️‍♂️ 9/11 conspiracy"             = "9/11 conspiracy",
+  "🍕 Pizzagate"                      = "pizzagate"
+)
+
 # Build US state polygons using modern sf syntax
 states_sf <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
 states_sf <- st_transform(states_sf, crs = 4326)
@@ -28,12 +41,17 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      textInput("keyword", "Enter a topic:", "autism tylenol"),
+      selectInput(
+        "keyword",
+        "Choose a topic:",
+        choices = topics,
+        selected = "covid vaccine side effects"
+      ),
       actionButton("go", "Search"),
       br(), br(),
-      helpText("Shows Google Trends search interest in the past 5 years."),
+      helpText("Select one of the misinformation topics to see search interest over the past 5 years."),
       hr(),
-      verbatimTextOutput("summary_stats")   
+      verbatimTextOutput("summary_stats")
     ),
     
     mainPanel(
