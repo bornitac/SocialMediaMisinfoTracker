@@ -8,34 +8,76 @@
 # token='13BB915FAD2F40A0BB8178BA37285F0', # Add shinyapps token
 #secret='0t6Tp4IJ3iZ7/Abjf+nZ/jBUe4H3MLAYtlpc9EU') # Add shinyapps secret
 # Warning: Do not publish these credentials publicly (e.g. on Github)
-library(sf)
-library(dplyr)
 library(shiny)
-library(gtrendsR)
 library(tidyverse)
-library(leaflet)
-library(maps)
-library(sp)
+library(dplyr)
+library(stringr)
 
-# Preset misinformation-related topics
 topics <- c(
-  "🧪 COVID vaccine side effects"    = "covid vaccine side effects",
-  "🗳️ Election fraud 2016"           = "election fraud 2016",
-  "🛰️ Flat Earth"                    = "flat earth",
-  "🌫️ Chemtrails"                    = "chemtrails",
-  "🔥 Climate change hoax"            = "climate change hoax",
-  "🌀 QAnon"                          = "qanon",
-  "💊 Big Pharma hiding cures"        = "big pharma cures",
-  "🕵️‍♂️ 9/11 conspiracy"             = "9/11 conspiracy",
-  "🍕 Pizzagate"                      = "pizzagate"
+  "COVID vaccine side effects"    = "covid vaccine side effects",
+  "Election fraud 2016"           = "election fraud 2016",
+  "Flat Earth"                    = "flat earth",
+  "Chemtrails"                    = "chemtrails",
+  "Climate change hoax"           = "climate change hoax",
+  "QAnon"                         = "qanon",
+  "Big Pharma hiding cures"       = "big pharma cures",
+  "9/11 conspiracy"            = "9/11 conspiracy",
+  "Pizzagate"                     = "pizzagate",
+  "Mandela Effect Froot Loops"    = "mandela effect froot loops"
 )
 
-# Build US state polygons using modern sf syntax
-states_sf <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
-states_sf <- st_transform(states_sf, crs = 4326)
-states_sf$state_name <- states_sf$ID   
+load_local_data <- function(keyword) {
+  
+  file_map <- list(
+    "covid vaccine side effects" = "covidvaccinesideeffects.csv",
+    "election fraud 2016" = "electionfraud2016.csv",
+    "flat earth" = "flatearth.csv",
+    "chemtrails" = "chemtrails.csv",
+    "climate change hoax" = "climatechangehoax.csv",
+    "qanon" = "qanon.csv",
+    "big pharma cures" = "bigpharmacures.csv",
+    "9/11 conspiracy" = "911conspiracy.csv",
+    "pizzagate" = "pizzagate.csv",
+    "mandela effect froot loops" = "mandelaeffectfrootloops.csv"
+  )
+  
+  fname <- file_map[[keyword]]
+  
+  # Step 1: read CSV, skip first 2 header rows
+  df_raw <- read_csv(
+    fname,
+    skip = 2,
+    show_col_types = FALSE
+  )
+  
+  # Step 2: remove the first row ("Week", label text)
+  df_raw <- df_raw[-1, ]
+  
+  # Step 3: rename first column to "date"
+  names(df_raw)[1] <- "date"
+  
+  # Step 4: convert date strings to Date
+  df_raw$date <- as.Date(df_raw$date, format = "%m/%d/%y")
+  
+  # Step 5: identify hit columns (all except date)
+  hit_cols <- names(df_raw)[names(df_raw) != "date"]
+  
+  # Step 6: clean numeric columns
+  df_raw[hit_cols] <- lapply(df_raw[hit_cols], function(x) {
+    as.numeric(str_replace(x, "<1", "0"))
+  })
+  
+  # Step 7: compute average hits (some files have 2 hit columns)
+  df_clean <- df_raw %>%
+    mutate(hits = rowMeans(across(all_of(hit_cols)), na.rm = TRUE)) %>%
+    select(date, hits)
+  
+  return(df_clean)
+}
 
-# UI 
+# ============================================================
+# UI
+# ============================================================
 ui <- fluidPage(
   titlePanel("SMM: Social Media Misinformation Tracker"),
   
@@ -47,9 +89,9 @@ ui <- fluidPage(
         choices = topics,
         selected = "covid vaccine side effects"
       ),
-      actionButton("go", "Search"),
+      actionButton("go", "Load Data"),
       br(), br(),
-      helpText("Select one of the misinformation topics to see search interest over the past 5 years."),
+      helpText("Displays Google Trends time-series from your local CSV files."),
       hr(),
       verbatimTextOutput("summary_stats")
     ),
@@ -57,92 +99,61 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("Trend Over Time", plotOutput("trendPlot")),
-        tabPanel("US Map", leafletOutput("usMap")),
         tabPanel(
           "README",
           h3("About SMM: Social Media Misinformation Tracker"),
-          p("This prototype app uses Google Trends data to explore how interest in misinformation topics changes over time.")
+          p("This prototype app uses locally stored Google Trends CSV data to visualize interest in misinformation topics over time.")
         )
       )
     )
   )
 )
 
-# SERVER 
+# ============================================================
+# SERVER
+# ============================================================
 server <- function(input, output, session) {
   
-  trends <- eventReactive(input$go, {
-    
-    g <- gtrends(keyword = input$keyword,
-                 geo = "US",
-                 time = "today+5-y")
-    
-    #Time series 
-    time_df <- g$interest_over_time %>% 
-      mutate(hits = as.numeric(replace(hits, hits == "<1", 0)))
-    
-    # Region data 
-    geo_df <- g$interest_by_region %>% 
-      mutate(
-        state_name = tolower(location), 
-        interest = as.numeric(replace(hits, hits == "<1", 0)) 
-      ) %>% 
-      select(state_name, interest) 
-    
-    #Merge region data into spatial polygons 
-    states_sf2 <- states_sf %>% 
-      left_join(geo_df, by = "state_name") 
-    
-    list(time = time_df, map = states_sf2) 
-  }) 
+  # Load data reactively when button is pressed
+  data_ts <- eventReactive(input$go, {
+    load_local_data(input$keyword)
+  })
   
-  #Summary stats in sidebar 
+  # SUMMARY STATISTICS
   output$summary_stats <- renderText({
-    req(trends()$time) 
+    df <- data_ts()
+    req(df)
     
-    df <- trends()$time 
-    avg_hits <- mean(df$hits, na.rm = TRUE) 
-    max_hits <- max(df$hits, na.rm = TRUE) 
-    min_hits <- min(df$hits, na.rm = TRUE) 
-    peak_date <- df$date[df$hits == max_hits] 
+    avg_hits <- mean(df$hits, na.rm = TRUE)
+    max_hits <- max(df$hits, na.rm = TRUE)
+    min_hits <- min(df$hits, na.rm = TRUE)
+    peak_date <- df$date[df$hits == max_hits]
     
-    paste0( 
+    paste0(
       "Summary for '", input$keyword, "':\n",
-      "Average interest: ",round(avg_hits, 2), "\n", 
-      "Peak interest: ", round(max_hits, 2), " on ", peak_date, "\n", 
-      "Minimum interest: ", round(min_hits, 2) ) })
+      "• Average interest: ", round(avg_hits, 2), "\n",
+      "• Peak interest: ", round(max_hits), " on ", peak_date, "\n",
+      "• Minimum interest: ", round(min_hits, 2)
+    )
+  })
   
-  #Trend Plot 
-  output$trendPlot <- renderPlot({ 
-    req(trends()$time) 
-    ggplot(trends()$time, aes(date, hits)) + 
-      geom_line(color = "steelblue") + 
-      theme_minimal() + 
-      labs(title = paste("Google Search interest for", input$keyword), 
-           x = "Date", 
-           y = "Search Interest (0–100)")
-  }) 
-  
-  #US Map 
-  output$usMap <- renderLeaflet({ 
-    req(trends()$map) 
-    df_map <- trends()$map 
-    pal <- colorNumeric("viridis", domain = df_map$interest) 
+  # TREND PLOT
+  output$trendPlot <- renderPlot({
+    df <- data_ts()
+    req(df)
     
-    leaflet(df_map) %>% 
-      addTiles() %>% 
-      addPolygons( 
-        fillColor = ~pal(interest), 
-        fillOpacity = 0.8, 
-        weight = 1, 
-        color = "white", 
-        popup = ~paste0("<b>", state_name, "</b><br>Interest: ", interest) 
-      ) %>% 
-      addLegend( "bottomright", 
-                 pal = pal, 
-                 values = df_map$interest, 
-                 title = "Search Interest (0–100)" ) }) }
+    ggplot(df, aes(date, hits)) +
+      geom_line(color = "steelblue", linewidth = 1.2) +
+      theme_minimal() +
+      labs(
+        title = paste("Google Search Interest Over Time for:", input$keyword),
+        x = "Date",
+        y = "Search Interest (0–100)"
+      )
+  })
+}
 
-# Run App 
-shinyApp(ui, server) 
-
+# ============================================================
+# RUN THE APP
+# ============================================================
+shinyApp(ui, server)
