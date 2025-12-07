@@ -148,15 +148,21 @@ ui <- fluidPage(
              leafletOutput("singleMap", height = 600)
     ),
     
-    # ---------------- Comparison Map ----------------
-    tabPanel("⚖️ Comparison Map",
+    # ---------------- Comparison Graph ----------------
+    
+    tabPanel("📊 Comparison Graph",
              br(),
-             selectInput("compare_a", "Topic A:", topics),
-             selectInput("compare_b", "Topic B:", topics),
-             actionButton("compare_go", "Compare", style = "background-color:#cc0033; color:white; font-weight:bold;"),
-             uiOutput("compare_placeholder"),
-             leafletOutput("compareMap", height = 600)
+             selectInput("comp_topic_a", "Topic A:", topics),
+             selectInput("comp_topic_b", "Topic B:", topics),
+             actionButton("comp_go", "Compare Trends", style = "background-color: #cc0033; color:white; font-weight:bold;"),
+             uiOutput("comparison_placeholder"),
+             br(),br(),
+             plotOutput("comparePlot")
     ),
+    
+    # --------------MOST POPULAR BY STATE -----------------
+    
+    
     
     # ---------------- README ----------------
     tabPanel("📘 README",
@@ -218,8 +224,8 @@ server <- function(input, output, session) {
     }
   })
   
-  output$compare_placeholder <- renderUI({
-    if (input$compare_go == 0) {
+  output$comparison_placeholder <- renderUI({
+    if (input$comp_go == 0) {
       div(style = "
           border: 2px solid #cc0000;
           background-color: #fff5f5;
@@ -232,13 +238,16 @@ server <- function(input, output, session) {
           border-radius: 10px; 
           ",
           HTML("
-        📊 Select two topics and click <b>Compare</b> to view the differences in searches between them!<br>
+        📊 Select <b> two topics <b> and click <b>Compare Trends</b> to see both trends side by side!<br>
       ")
       )
     } else {
       NULL
     }
   })
+  
+  
+  
   output$trendPlot <- renderPlot({
     req(input$trend_go)
     
@@ -279,33 +288,30 @@ server <- function(input, output, session) {
                 title = "Search Interest")
   })
   
-  output$compareMap <- renderLeaflet({
-    req(input$compare_go)
+  output$comparePlot <- renderPlot({
+    req(input$comp_go)
     
-    a <- load_map_data(input$compare_a)
-    b <- load_map_data(input$compare_b)
+    df_a <- load_time_data(input$comp_topic_a)
+    df_b <- load_time_data(input$comp_topic_b)
     
-    diff <- a |>
-      left_join(b, by = "state_name", suffix = c("_a", "_b")) |>
-      mutate(diff = interest_a - interest_b)
+    df_a$topic <- input$comp_topic_a
+    df_b$topic <- input$comp_topic_b
     
-    joined <- states_sf |> left_join(diff, by = "state_name")
+    df <- bind_rows(df_a, df_b)
     
-    pal <- colorNumeric("RdBu", joined$diff)
-    
-    leaflet(joined) |>
-      addTiles() |>
-      addPolygons(
-        fillColor = ~pal(diff),
-        fillOpacity = 0.8,
-        color = "white",
-        popup = ~paste0(to_title_case(state_name), ": ", diff)
-      ) |>
-      addLegend("bottomright",
-                pal = pal,
-                values = joined$diff,
-                title = "Difference (A − B)")
+    ggplot(df, aes(date, hits, color = topic)) +
+      geom_line(linewidth = 1.3) +
+      theme_minimal() +
+      scale_color_manual(values = c("#cc0033", "#1f78b4")) +
+      labs(
+        title = paste("Comparison of Trends"),
+        x = "Date",
+        y = "Interest (0-100)",
+        color = "Topic"
+      )
   })
+    
+  
 }
 
 # ------------------------------------------------------------
