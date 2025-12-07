@@ -8,11 +8,8 @@
 # token='13BB915FAD2F40A0BB8178BA37285F0', # Add shinyapps token
 #secret='0t6Tp4IJ3iZ7/Abjf+nZ/jBUe4H3MLAYtlpc9EU') # Add shinyapps secret
 # Warning: Do not publish these credentials publicly (e.g. on Github)
-# ============================================================
-# SMM: Social Media Misinformation Tracker
-# Local Google Trends CSVs only
-# ============================================================
 
+#Load the libraries 
 library(shiny)
 library(tidyverse)
 library(stringr)
@@ -27,15 +24,12 @@ states_sf <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
 states_sf <- st_transform(states_sf, 4326)
 states_sf$state_name <- tolower(states_sf$ID)
 
-# ENSURE THAT ALL NAMES ARE PROPER 
-
+#Making sure the titles are fine
 to_title_case <- function(x) {
   stringr::str_to_title(x)
 }
 
-# ------------------------------------------------------------
-# TOPICS (EMOJIS)
-# ------------------------------------------------------------
+# Listing the topics
 topics <- c(
   "🧪 COVID vaccine side effects" = "covid vaccine side effects",
   "🗳️ Election fraud 2016" = "election fraud 2016",
@@ -49,9 +43,7 @@ topics <- c(
   "🥣 Mandela Effect: Froot Loops" = "mandela effect froot loops"
 )
 
-# ------------------------------------------------------------
-# DATA LOADERS
-# ------------------------------------------------------------
+#Load the data for the map
 load_time_data <- function(keyword) {
   file_map <- list(
     "covid vaccine side effects" = "covidvaccinesideeffects.csv",
@@ -104,9 +96,7 @@ load_map_data <- function(keyword) {
   ) |> mutate(interest = replace_na(interest, 0))
 }
 
-# ------------------------------------------------------------
-# UI (NO SIDEBAR)
-# ------------------------------------------------------------
+#The UI
 ui <- fluidPage(
 
   tags$style("
