@@ -10,7 +10,8 @@
 # Warning: Do not publish these credentials publicly (e.g. on Github)
 # ============================================================
 # SMM: Social Media Misinformation Tracker
-# Uses ONLY local CSV files (no Google API calls)
+# Baseline Analysis + Cross-State Comparison
+# Uses ONLY local Google Trends CSV exports
 # ============================================================
 
 # ======================
@@ -31,7 +32,7 @@ states_sf <- st_transform(states_sf, 4326)
 states_sf$state_name <- tolower(states_sf$ID)
 
 # ======================
-# TOPICS (EMOJIS KEPT)
+# TOPICS (WITH EMOJIS)
 # ======================
 topics <- c(
   "🧪 COVID vaccine side effects" = "covid vaccine side effects",
@@ -47,76 +48,68 @@ topics <- c(
 )
 
 # ======================
-# LOAD TIME-SERIES CSV
+# FILE MAPS
+# ======================
+time_files <- list(
+  "covid vaccine side effects" = "covidvaccinesideeffects.csv",
+  "election fraud 2016"        = "electionfraud2016.csv",
+  "flat earth"                 = "flatearth.csv",
+  "chemtrails"                 = "chemtrails.csv",
+  "climate change hoax"        = "climatechangehoax.csv",
+  "qanon"                      = "qanon.csv",
+  "big pharma cures"           = "bigpharmacures.csv",
+  "9/11 conspiracy"            = "911conspiracy.csv",
+  "pizzagate"                  = "pizzagate.csv",
+  "mandela effect froot loops" = "mandelaeffectfrootloops.csv"
+)
+
+map_files <- list(
+  "covid vaccine side effects" = "geoMapCovid.csv",
+  "election fraud 2016"        = "geoMapElection.csv",
+  "flat earth"                 = "geoMapFlatEarth.csv",
+  "chemtrails"                 = "geoMapChem.csv",
+  "climate change hoax"        = "geoMapClimate.csv",
+  "qanon"                      = "geoMapQanon.csv",
+  "big pharma cures"           = "geoMapPharma.csv",
+  "9/11 conspiracy"            = "geoMapNine.csv",
+  "pizzagate"                  = "geoMapPizza.csv",
+  "mandela effect froot loops" = "geoMapMandela.csv"
+)
+
+# ======================
+# LOAD TIME DATA
 # ======================
 load_time_data <- function(keyword) {
-  
-  file_map <- list(
-    "covid vaccine side effects" = "covidvaccinesideeffects.csv",
-    "election fraud 2016"        = "electionfraud2016.csv",
-    "flat earth"                 = "flatearth.csv",
-    "chemtrails"                 = "chemtrails.csv",
-    "climate change hoax"        = "climatechangehoax.csv",
-    "qanon"                      = "qanon.csv",
-    "big pharma cures"           = "bigpharmacures.csv",
-    "9/11 conspiracy"            = "911conspiracy.csv",
-    "pizzagate"                  = "pizzagate.csv",
-    "mandela effect froot loops" = "mandelaeffectfrootloops.csv"
-  )
-  
-  fname <- file.path("CSV", file_map[[keyword]])
-  req(file.exists(fname))
-  
-  df <- read_csv(fname, skip = 2, show_col_types = FALSE)
-  df <- df[-1, ]   # Remove "Week / keyword row"
+  df <- read_csv(file.path("CSV", time_files[[keyword]]),
+                 skip = 2, show_col_types = FALSE)
+  df <- df[-1, ]
   
   dates <- as.Date(df[[1]], tryFormats = c("%m/%d/%y", "%Y-%m-%d"))
-  values <- df[-1]
   
-  values_clean <- lapply(values, function(x) {
-    as.numeric(str_replace(x, "<1", "0"))
-  })
+  values <- df[-1] %>%
+    mutate(across(everything(),
+                  ~ as.numeric(str_replace(., "<1", "0"))))
   
   tibble(
     date = dates,
-    hits = rowMeans(as.data.frame(values_clean), na.rm = TRUE)
+    hits = rowMeans(values, na.rm = TRUE)
   )
 }
 
 # ======================
-# LOAD MAP CSV
+# LOAD MAP DATA
 # ======================
 load_map_data <- function(keyword) {
+  df <- read_csv(file.path("Map CSV", map_files[[keyword]]),
+                 skip = 2, show_col_types = FALSE)
   
-  file_map <- list(
-    "covid vaccine side effects" = "geoMapCovid.csv",
-    "election fraud 2016"        = "geoMapElection.csv",
-    "flat earth"                 = "geoMapFlatEarth.csv",
-    "chemtrails"                 = "geoMapChem.csv",
-    "climate change hoax"        = "geoMapClimate.csv",
-    "qanon"                      = "geoMapQanon.csv",
-    "big pharma cures"           = "geoMapPharma.csv",
-    "9/11 conspiracy"            = "geoMapNine.csv",
-    "pizzagate"                  = "geoMapPizza.csv",
-    "mandela effect froot loops" = "geoMapMandela.csv"
-  )
-  
-  fname <- file.path("Map CSV", file_map[[keyword]])
-  req(file.exists(fname))
-  
-  df <- read_csv(fname, skip = 2, show_col_types = FALSE)
-  
-  # Handle malformed or empty CSVs safely
   if (ncol(df) < 2) {
-    return(tibble(
-      state_name = states_sf$state_name,
-      interest = 0
-    ))
+    return(tibble(state_name = states_sf$state_name, interest = 0))
   }
   
   tibble(
     state_name = tolower(df[[1]]),
-    interest = as.numeric(str_replace(df[[2]], "<1", "0"))
+    interest   = as.numeric(str_replace(df[[2]], "<1", "0"))
   )
 }
 
@@ -128,21 +121,41 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      selectInput("keyword", "Choose a topic:", choices = topics),
-      actionButton("go", "Load Data"),
-      hr(),
-      verbatimTextOutput("summary")
+      conditionalPanel(
+        condition = "input.tabs == 'trend'",
+        selectInput("single_topic", "Single topic:", topics)
+      ),
+      conditionalPanel(
+        condition = "input.tabs == 'singlemap'",
+        selectInput("map_topic", "Single topic:", topics)
+      ),
+      conditionalPanel(
+        condition = "input.tabs == 'compare'",
+        selectInput("compare_a", "Compare topic A:", topics),
+        selectInput("compare_b", "Compare topic B:", topics)
+      ),
+      actionButton("go", "Load Data")
     ),
     
     mainPanel(
-      tabsetPanel(
-        tabPanel("Trend Over Time", plotOutput("trendPlot")),
-        tabPanel("US Map", leafletOutput("usMap")),
-        tabPanel(
-          "README",
-          h4("About"),
-          p("This app explores misinformation-related topics using Google Trends CSV exports.")
-        )
+      tabsetPanel(id = "tabs",
+                  tabPanel("Trend Over Time",
+                           value = "trend",
+                           plotOutput("trendPlot"),
+                           verbatimTextOutput("summary")),
+                  
+                  tabPanel("Single Topic Map",
+                           value = "singlemap",
+                           leafletOutput("singleMap", height = 520)),
+                  
+                  tabPanel("Comparison Map",
+                           value = "compare",
+                           leafletOutput("compareMap", height = 520)),
+                  
+                  tabPanel("README",
+                           p("This app explores misinformation-related Google search interest."),
+                           p("The comparison map highlights which topic dominates at the state level.")
+                  )
       )
     )
   )
@@ -151,78 +164,94 @@ ui <- fluidPage(
 # ======================
 # SERVER
 # ======================
-server <- function(input, output, session) {
+server <- function(input, output) {
   
-  ts_data <- eventReactive(input$go, {
-    load_time_data(input$keyword)
+  ts_data <- eventReactive(input$go,
+                           load_time_data(input$single_topic))
+  
+  single_map <- eventReactive(input$go,
+                              load_map_data(input$map_topic))
+  
+  compare_map <- eventReactive(input$go, {
+    a <- load_map_data(input$compare_a)
+    b <- load_map_data(input$compare_b)
+    
+    full_join(a, b, by = "state_name",
+              suffix = c("_a", "_b")) %>%
+      mutate(
+        interest_a = replace_na(interest_a, 0),
+        interest_b = replace_na(interest_b, 0),
+        diff = interest_a - interest_b
+      )
   })
   
-  map_data <- eventReactive(input$go, {
-    load_map_data(input$keyword)
+  # ===== Trend =====
+  output$trendPlot <- renderPlot({
+    df <- ts_data()
+    ggplot(df, aes(date, hits)) +
+      geom_line(color = "steelblue", linewidth = 1.2) +
+      theme_minimal() +
+      labs(x = "Date", y = "Search Interest",
+           title = paste("Search Interest Over Time:",
+                         input$single_topic))
   })
   
   output$summary <- renderText({
     df <- ts_data()
-    req(df)
-    
     paste0(
-      "Summary for '", input$keyword, "':\n",
-      "Average interest: ", round(mean(df$hits, na.rm = TRUE), 2), "\n",
-      "Peak interest: ", max(df$hits, na.rm = TRUE), " on ",
-      df$date[which.max(df$hits)], "\n",
-      "Minimum interest: ", min(df$hits, na.rm = TRUE)
+      "Average: ", round(mean(df$hits), 2), "\n",
+      "Peak: ", max(df$hits), "\n",
+      "Minimum: ", min(df$hits)
     )
   })
   
-  output$trendPlot <- renderPlot({
-    df <- ts_data()
-    req(df)
+  # ===== Single Map =====
+  output$singleMap <- renderLeaflet({
+    joined <- states_sf %>%
+      left_join(single_map(), by = "state_name") %>%
+      mutate(interest = replace_na(interest, 0))
     
-    ggplot(df, aes(date, hits)) +
-      geom_line(color = "steelblue", linewidth = 1.1) +
-      theme_minimal() +
-      labs(
-        title = paste("Search Interest Over Time:", input$keyword),
-        x = "Date",
-        y = "Search Interest (0–100)"
-      )
-  })
-  
-  output$usMap <- renderLeaflet({
+    pal <- colorNumeric("viridis", domain = joined$interest)
     
-    df_map <- map_data()
-    req(df_map)
-    
-    states_joined <- states_sf %>%
-      left_join(df_map, by = "state_name") %>%
-      mutate(
-        interest = replace_na(interest, 0),
-        interest = pmax(0, round(as.numeric(interest)))   # ✅ FIXES “-0”
-      )
-    
-    max_val <- max(states_joined$interest, na.rm = TRUE)
-    if (!is.finite(max_val) || max_val <= 0) max_val <- 1
-    
-    pal <- colorNumeric("viridis", domain = c(0, max_val))
-    
-    leaflet(states_joined) %>%
+    leaflet(joined) %>%
       addTiles() %>%
       addPolygons(
         fillColor = ~pal(interest),
         fillOpacity = 0.8,
         color = "white",
         weight = 1,
+        popup = ~paste0(state_name,
+                        "<br>Interest: ", interest)
+      ) %>%
+      addLegend("bottomright", pal = pal,
+                values = joined$interest,
+                title = "Relative Search Interest")
+  })
+  
+  # ===== Comparison Map =====
+  output$compareMap <- renderLeaflet({
+    joined <- states_sf %>%
+      left_join(compare_map(), by = "state_name")
+    
+    pal <- colorNumeric(c("red", "white", "blue"),
+                        domain = joined$diff)
+    
+    leaflet(joined) %>%
+      addTiles() %>%
+      addPolygons(
+        fillColor = ~pal(diff),
+        fillOpacity = 0.8,
+        color = "white",
+        weight = 1,
         popup = ~paste0(
-          "<b>", state_name, "</b><br>",
-          "Relative interest: ", interest
+          state_name, "<br>",
+          input$compare_a, ": ", interest_a, "<br>",
+          input$compare_b, ": ", interest_b
         )
       ) %>%
-      addLegend(
-        "bottomright",
-        pal = pal,
-        values = states_joined$interest,
-        title = "Relative Search Interest"
-      )
+      addLegend("bottomright", pal = pal,
+                values = joined$diff,
+                title = "Topic Dominance (A − B)")
   })
 }
 
