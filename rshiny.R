@@ -48,7 +48,9 @@ load_local_data <- function(keyword) {
     "mandela effect froot loops" = "mandelaeffectfrootloops.csv"
   )
   
-  fname <- file_map[[keyword]]
+  fname <- file.path("data", file_map[[keyword]])
+  req(fname)
+  
   
   df_raw <- read_csv(fname, skip = 2, show_col_types = FALSE)
   df_raw <- df_raw[-1, ]
@@ -84,7 +86,9 @@ load_map_data <- function(keyword) {
     "mandela effect froot loops" = "geoMapMandela.csv"
   )
   
-  fname <- map_file_map[[keyword]]
+  fname <- file.path("data", map_file_map[[keyword]])
+  req(file.exists(fname))
+  
   
   df <- read_csv(fname, show_col_types = FALSE)
   
