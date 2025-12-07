@@ -27,6 +27,12 @@ states_sf <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
 states_sf <- st_transform(states_sf, 4326)
 states_sf$state_name <- tolower(states_sf$ID)
 
+# ENSURE THAT ALL NAMES ARE PROPER 
+
+to_title_case <- function(x) {
+  stringr::str_to_title(x)
+}
+
 # ------------------------------------------------------------
 # TOPICS (EMOJIS)
 # ------------------------------------------------------------
@@ -102,8 +108,33 @@ load_map_data <- function(keyword) {
 # UI (NO SIDEBAR)
 # ------------------------------------------------------------
 ui <- fluidPage(
+
+  tags$style("
+             body { background-color: #faf7f7; }
+          
+             
+             #singleMap, #compareMap {
+             border: 2px solid #990000;
+             border-radius: 8px; }),
+                 .nav-tabs a {
+                   color: #cc0033;
+                     font-weight: bold;
+                 }
+               
+               .nav-tabs > .active > a {
+                 background-color: #cc0033 !important;
+                   color: white !important;
+                 border-radius: 6px 6px 0 0 !important;
+               }
+               
+               .nav-tabs a:hover {
+                 text-decoration: underline;
+                 text-decoration-color: #cc0033;
+               }
+               "),
+  tags$head(tags$style("body { background-color: #f5f5f5; }")),
   
-  titlePanel("SMM: Social Media Misinformation Tracker"),
+  titlePanel(div("SMM: Social Media Misinformation Tracker", style = "text-align:center; color:#cc0033; font-weight:bold;")),
   
   tabsetPanel(
     
@@ -111,7 +142,10 @@ ui <- fluidPage(
     tabPanel("📈 Trend Over Time",
              br(),
              selectInput("trend_topic", "Choose a topic:", topics),
-             actionButton("trend_go", "Show Trend"),
+             actionButton("trend_go", "Show Trend", style = "background-color:#cc0033; color:white; font-weight:bold;"),
+             uiOutput("trend_placeholder"),
+             br(), br(),
+             uiOutput("trend_placeholder"),
              plotOutput("trendPlot")
     ),
     
@@ -119,7 +153,8 @@ ui <- fluidPage(
     tabPanel("🗺️ Single Topic Map",
              br(),
              selectInput("map_topic", "Choose a topic:", topics),
-             actionButton("map_go", "Show Map"),
+             actionButton("map_go", "Show Map", style = "background-color:#cc0033; color:white; font-weight:bold;"),
+             uiOutput("map_placeholder"),
              leafletOutput("singleMap", height = 600)
     ),
     
@@ -128,7 +163,8 @@ ui <- fluidPage(
              br(),
              selectInput("compare_a", "Topic A:", topics),
              selectInput("compare_b", "Topic B:", topics),
-             actionButton("compare_go", "Compare"),
+             actionButton("compare_go", "Compare", style = "background-color:#cc0033; color:white; font-weight:bold;"),
+             uiOutput("compare_placeholder"),
              leafletOutput("compareMap", height = 600)
     ),
     
@@ -147,6 +183,72 @@ ui <- fluidPage(
 # ------------------------------------------------------------
 server <- function(input, output, session) {
   
+  output$trend_placeholder <- renderUI({
+    if (input$trend_go == 0) {
+      div(style = "
+          border: 2px solid #cc0000;
+          background-color: #fff5f5;
+          padding: 25px:
+          margin-top:25px:
+          width: 70%;
+          text-align: center; 
+          font-size: 16px !important;
+          color: #660000;
+          border-radius: 10px; 
+          ",
+          HTML("
+        <b>Welcome to the Misinformation Mapper!</b><br><br>
+        📊 Select a topic and click <b>Show Trend</b> to begin!<br>
+      ")
+      )
+    } else {
+      NULL
+    }
+  })
+  
+  output$map_placeholder <- renderUI({
+    if (input$map_go == 0) {
+      div(style = "
+          border: 2px solid #cc0000;
+          background-color: #fff5f5;
+          padding: 25px:
+          margin-top:25px:
+          width: 70%;
+          text-align: center; 
+          font-size: 16px !important;
+          color: #660000;
+          border-radius: 10px; 
+          ",
+          HTML("
+        📊 Select a topic and click <b>Show Map</b> to see how searches vary across states!<br>
+      ")
+      )
+    } else {
+      NULL
+    }
+  })
+  
+  output$compare_placeholder <- renderUI({
+    if (input$compare_go == 0) {
+      div(style = "
+          border: 2px solid #cc0000;
+          background-color: #fff5f5;
+          padding: 25px:
+          margin-top:25px:
+          width: 70%;
+          text-align: center; 
+          font-size: 16px !important;
+          color: #660000;
+          border-radius: 10px; 
+          ",
+          HTML("
+        📊 Select two topics and click <b>Compare</b> to view the differences in searches between them!<br>
+      ")
+      )
+    } else {
+      NULL
+    }
+  })
   output$trendPlot <- renderPlot({
     req(input$trend_go)
     
@@ -179,7 +281,7 @@ server <- function(input, output, session) {
         fillOpacity = 0.8,
         weight = 1,
         color = "white",
-        popup = ~paste(state_name, ": ", interest)
+        popup = ~paste0(to_title_case(state_name), ": ", interest)
       ) |>
       addLegend("bottomright",
                 pal = pal,
@@ -207,7 +309,7 @@ server <- function(input, output, session) {
         fillColor = ~pal(diff),
         fillOpacity = 0.8,
         color = "white",
-        popup = ~paste(state_name, ": ", diff)
+        popup = ~paste0(to_title_case(state_name), ": ", diff)
       ) |>
       addLegend("bottomright",
                 pal = pal,
