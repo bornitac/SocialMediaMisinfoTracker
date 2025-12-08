@@ -1,14 +1,3 @@
-# This script is used to deploy the RShiny app
-# But I recommend using the GUI in RStudio to do this
-
-# Loading package to deploy app
-
-# Use credentials for deployment, run to authenticate (you should only need to do this once)
-#rsconnect::setAccountInfo(name='3ezgmp-bornita0chowdhury', # Add shinyapps username
-# token='13BB915FAD2F40A0BB8178BA37285F0', # Add shinyapps token
-#secret='0t6Tp4IJ3iZ7/Abjf+nZ/jBUe4H3MLAYtlpc9EU') # Add shinyapps secret
-# Warning: Do not publish these credentials publicly (e.g. on Github)
-
 #Load the libraries 
 library(shiny)
 library(tidyverse)
@@ -17,9 +6,8 @@ library(sf)
 library(leaflet)
 library(maps)
 
-# ------------------------------------------------------------
-# US STATES SHAPEFILE
-# ------------------------------------------------------------
+# States SF
+
 states_sf <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
 states_sf <- st_transform(states_sf, 4326)
 states_sf$state_name <- tolower(states_sf$ID)
@@ -128,7 +116,7 @@ ui <- fluidPage(
   
   tabsetPanel(
     
-    # ---------------- Trend Tab ----------------
+    #Single Topic Line Graph 
     tabPanel("📈 Trend Over Time",
              br(),
              selectInput("trend_topic", "Choose a topic:", topics),
@@ -139,7 +127,7 @@ ui <- fluidPage(
              plotOutput("trendPlot")
     ),
     
-    # ---------------- Single Map ----------------
+    #Single Topic Map
     tabPanel("🗺️ Single Topic Map",
              br(),
              selectInput("map_topic", "Choose a topic:", topics),
@@ -148,7 +136,7 @@ ui <- fluidPage(
              leafletOutput("singleMap", height = 600)
     ),
     
-    # ---------------- Comparison Graph ----------------
+    #Comparison Line Graph
     
     tabPanel("📊 Comparison Graph",
              br(),
@@ -160,11 +148,17 @@ ui <- fluidPage(
              plotOutput("comparePlot")
     ),
     
-    # --------------MOST POPULAR BY STATE -----------------
+    #Most Popular Topic by State Map
     
+    tabPanel("🗺 Most Popular Topic Map",
+             br(),
+             actionButton("pop_go", "Show Most Popular Searches by State", style = "background-color: #cc0033; color:white; font-weight:bold;"),
+             uiOutput("popular_placeholder"),
+             br(),br(),
+             leafletOutput("popularMap", height = 600)
+    ),
     
-    
-    # ---------------- README ----------------
+    #README
     tabPanel("📘 README",
              h4("About This Project"),
              p("This app examines how misinformation-related search interest varies over time and across U.S. states."),
@@ -174,9 +168,7 @@ ui <- fluidPage(
   )
 )
 
-# ------------------------------------------------------------
-# SERVER
-# ------------------------------------------------------------
+# The Server 
 server <- function(input, output, session) {
   
   output$trend_placeholder <- renderUI({
@@ -246,7 +238,28 @@ server <- function(input, output, session) {
     }
   })
   
-  
+  output$popular_placeholder <- renderUI({
+    if (input$pop_go == 0) {
+      div(style = "
+          border: 2px solid #cc0000;
+          background-color: #fff5f5;
+          padding: 25px:
+          margin-top:25px:
+          width: 70%;
+          text-align: center; 
+          font-size: 16px !important;
+          color: #660000;
+          border-radius: 10px; 
+          ",
+          HTML("📍
+          Click the red button above to generate the map!<br>
+          This will show which conspiracy topic<br>
+          was <b> searched the most <b> in each state.")
+      )
+    } else {
+      NULL
+    }
+  })
   
   output$trendPlot <- renderPlot({
     req(input$trend_go)
@@ -311,10 +324,58 @@ server <- function(input, output, session) {
       )
   })
     
+  output$popularMap <- renderLeaflet({
+    req(input$pop_go)
+    
+    #get names 
+    topic_keys <- unname(topics)
+    
+    #load each map csv
+    all_maps <- lapply(topic_keys, load_map_data)
+    names(all_maps) <- topic_keys
+    
+    #first dataset 
+    final_df <- all_maps[[1]]
+    colnames(final_df)[2] <- topic_keys[1]
+    
+    #merge in remaining datasets 
+    for(i in 2: length(topic_keys)){
+      df <- all_maps[[i]]
+      colnames(df)[2] <- topic_keys[i]
+      final_df <- left_join(final_df, df, by = "state_name")
+    }
+    
+    #find top search
+    final_df$top_topic <- apply(
+      final_df[, topic_keys],
+      1,
+      function(row) topic_keys[which.max(row)]
+    )
+    
+    final_df$top_topic_title <- stringr::str_to_title(final_df$top_topic)
+    map_df <- left_join(states_sf, final_df, by = "state_name")
+    
+    #colors
+    pal <- colorFactor("Set3", map_df$top_topic_title)
+    
+    #map 
+    leaflet(map_df) |>
+      addTiles() |>
+      addPolygons(
+        fillColor = ~pal(top_topic_title),
+        fillOpacity = 0.85,
+        weight = 1, 
+        color = "white",
+        popup = ~paste0("<b>", to_title_case(state_name), "</b><br>","🏆 Most Popular Topic:<br>",
+                        top_topic_title)
+      ) |>
+      addLegend("bottomright", 
+                pal = pal,
+                values = map_df$top_topic_title,
+                title = "Most Popular Topic")
+  })
   
 }
 
-# ------------------------------------------------------------
 # RUN
-# ------------------------------------------------------------
 shinyApp(ui, server)
