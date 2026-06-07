@@ -19,16 +19,16 @@ to_title_case <- function(x) {
 
 # Listing the topics
 topics <- c(
-  "🧪 COVID vaccine side effects" = "covid vaccine side effects",
-  "🗳️ Election fraud 2016" = "election fraud 2016",
-  "🛰️ Flat Earth" = "flat earth",
-  "🌫️ Chemtrails" = "chemtrails",
-  "🔥 Climate change hoax" = "climate change hoax",
-  "🌀 QAnon" = "qanon",
-  "💊 Big Pharma hiding cures" = "big pharma cures",
-  "🕵️‍♂️ 9/11 conspiracy" = "9/11 conspiracy",
-  "🍕 Pizzagate" = "pizzagate",
-  "🥣 Mandela Effect: Froot Loops" = "mandela effect froot loops"
+  "COVID vaccine side effects" = "covid vaccine side effects",
+  "Election fraud 2016" = "election fraud 2016",
+  "Flat Earth" = "flat earth",
+  "Chemtrails" = "chemtrails",
+  "Climate change hoax" = "climate change hoax",
+  "QAnon" = "qanon",
+  "Big Pharma hiding cures" = "big pharma cures",
+  "9/11 conspiracy" = "9/11 conspiracy",
+  "Pizzagate" = "pizzagate",
+  "Mandela Effect: Froot Loops" = "mandela effect froot loops"
 )
 
 #Load the data for the map
@@ -117,7 +117,7 @@ ui <- fluidPage(
   tabsetPanel(
     
     #Single Topic Line Graph 
-    tabPanel("📈 Trend Over Time",
+    tabPanel("Trend Over Time",
              br(),
              selectInput("trend_topic", "Choose a topic:", topics),
              actionButton("trend_go", "Show Trend", style = "background-color:#cc0033; color:white; font-weight:bold;"),
@@ -128,7 +128,7 @@ ui <- fluidPage(
     ),
     
     #Single Topic Map
-    tabPanel("🗺️ Single Topic Map",
+    tabPanel("Single Topic Map",
              br(),
              selectInput("map_topic", "Choose a topic:", topics),
              actionButton("map_go", "Show Map", style = "background-color:#cc0033; color:white; font-weight:bold;"),
@@ -138,7 +138,7 @@ ui <- fluidPage(
     
     #Comparison Line Graph
     
-    tabPanel("📊 Comparison Graph",
+    tabPanel("Comparison Graph",
              br(),
              selectInput("comp_topic_a", "Topic A:", topics),
              selectInput("comp_topic_b", "Topic B:", topics),
@@ -150,7 +150,7 @@ ui <- fluidPage(
     
     #Most Popular Topic by State Map
     
-    tabPanel("🗺 Most Popular Topic Map",
+    tabPanel("Most Popular Topic Map",
              br(),
              actionButton("pop_go", "Show Most Popular Searches by State", style = "background-color: #cc0033; color:white; font-weight:bold;"),
              uiOutput("popular_placeholder"),
@@ -159,7 +159,7 @@ ui <- fluidPage(
     ),
     
     #README
-    tabPanel("📘 README",
+    tabPanel("README",
              h4("About This Project"),
              p("This app examines how misinformation-related search interest varies over time and across U.S. states."),
              p("It supports geographic comparison between conspiracies, highlighting regional differences."),
@@ -186,7 +186,7 @@ server <- function(input, output, session) {
           ",
           HTML("
         <b>Welcome to the Misinformation Mapper!</b><br><br>
-        📊 Select a topic and click <b>Show Trend</b> to begin!<br>
+        Select a topic and click <b>Show Trend</b> to begin!<br>
       ")
       )
     } else {
@@ -208,7 +208,7 @@ server <- function(input, output, session) {
           border-radius: 10px; 
           ",
           HTML("
-        📊 Select a topic and click <b>Show Map</b> to see how searches vary across states!<br>
+        Select a topic and click <b>Show Map</b> to see how searches vary across states!<br>
       ")
       )
     } else {
@@ -230,7 +230,7 @@ server <- function(input, output, session) {
           border-radius: 10px; 
           ",
           HTML("
-        📊 Select <b> two topics <b> and click <b>Compare Trends</b> to see both trends side by side!<br>
+        Select <b> two topics <b> and click <b>Compare Trends</b> to see both trends side by side!<br>
       ")
       )
     } else {
@@ -251,7 +251,7 @@ server <- function(input, output, session) {
           color: #660000;
           border-radius: 10px; 
           ",
-          HTML("📍
+          HTML("
           Click the red button above to generate the map!<br>
           This will show which conspiracy topic<br>
           was <b> searched the most <b> in each state.")
@@ -366,7 +366,7 @@ server <- function(input, output, session) {
         fillOpacity = 0.85,
         weight = 1, 
         color = "white",
-        popup = ~paste0("<b>", to_title_case(state_name), "</b><br>","🏆 Most Popular Topic:<br>",
+        popup = ~paste0("<b>", to_title_case(state_name), "</b><br>","Most Popular Topic:<br>",
                         top_topic_title)
       ) |>
       addLegend("bottomright", 
