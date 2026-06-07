@@ -2,7 +2,7 @@
 
 An R Shiny web application analyzing U.S. misinformation trends using Google Trends data.
 
- **Live app:** https://bornitachowdhury.shinyapps.io/SocialMediaMisinfoTracker/
+ **Live app:** https://bornitachowdhury.shinyapps.io/SocialMediaMisinformationTracker/
 
 ## Built With
 - R, R Shiny, gtrendsR, ggplot2, Leaflet, tidyverse, sf
