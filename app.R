@@ -86,7 +86,8 @@ load_map_data <- function(keyword) {
 
 #The UI
 ui <- fluidPage(
-
+  title = "Social Media Misinformation Tracker",
+  
   tags$style("
              body { background-color: #faf7f7; }
           
@@ -367,7 +368,7 @@ server <- function(input, output, session) {
     )
   })
   
-    
+  
   output$popularMap <- renderLeaflet({
     req(input$pop_go)
     
