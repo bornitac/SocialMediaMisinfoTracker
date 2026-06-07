@@ -117,7 +117,7 @@ ui <- fluidPage(
   tabsetPanel(
     
     #Single Topic Line Graph 
-    tabPanel("📈 Trend Over Time",
+    tabPanel("Trend Over Time",
              br(),
              selectInput("trend_topic", "Choose a topic:", topics),
              actionButton("trend_go", "Show Trend", style = "background-color:#cc0033; color:white; font-weight:bold;"),
