@@ -14,9 +14,16 @@ An R Shiny web application analyzing U.S. misinformation trends using Google Tre
 - Identifies the most-searched misinformation topic per state
 
 ## Topics Tracked
-COVID Vaccine Side Effects · Election Fraud 2016 · Flat Earth · Chemtrails ·
-Climate Change Hoax · QAnon · Big Pharma Hiding Cures · 9/11 Conspiracy ·
-Pizzagate · Mandela Effect: Froot Loops
+· COVID Vaccine Side Effects 
+· Election Fraud 2016 
+· Flat Earth 
+· Chemtrails 
+· Climate Change Hoax 
+· QAnon 
+· Big Pharma Hiding Cures 
+· 9/11 Conspiracy 
+· Pizzagate 
+· Mandela Effect: Froot Loops
 
 ## Running Locally
 1. Clone the repo
