@@ -86,7 +86,8 @@ load_map_data <- function(keyword) {
 
 #The UI
 ui <- fluidPage(
-
+  title = "Social Media Misinformation Tracker",
+  
   tags$style("
              body { background-color: #faf7f7; }
           
@@ -145,7 +146,9 @@ ui <- fluidPage(
              actionButton("comp_go", "Compare Trends", style = "background-color: #cc0033; color:white; font-weight:bold;"),
              uiOutput("comparison_placeholder"),
              br(),br(),
-             plotOutput("comparePlot")
+             plotOutput("comparePlot"),
+             br(),
+             uiOutput("ratio_text")
     ),
     
     #Most Popular Topic by State Map
@@ -163,7 +166,16 @@ ui <- fluidPage(
              h4("About This Project"),
              p("This app examines how misinformation-related search interest varies over time and across U.S. states."),
              p("It supports geographic comparison between conspiracies, highlighting regional differences."),
-             p("All data come from Google Trends CSV exports and are processed locally.")
+             p("All data come from Google Trends CSV exports and are processed locally."),
+             p("Users can select from well-known conspiracy themes — such as election fraud, chemtrails, or climate-related hoaxes — and instantly visualize how search activity for these topics has shifted over the past five years."),
+             h4("What the App Shows"),
+             tags$ul(
+               tags$li("A time-series graph showing how search interest rises and falls over time."),
+               tags$li("A state-level map that highlights where each topic is most or least popular."),
+               tags$li("A comparison graph that allows two topics to be viewed together."),
+               tags$li("A ratio summary that explains how two topics differ in relative interest."),
+               tags$li("A 'most popular topic by state' map that identifies the leading conspiracy in each state.")
+             )
     )
   )
 )
@@ -319,11 +331,44 @@ server <- function(input, output, session) {
       labs(
         title = paste("Comparison of Trends"),
         x = "Date",
-        y = "Interest (0-100)",
+        y = "Interest (0–100)",
         color = "Topic"
       )
   })
+  
+  output$ratio_text <- renderUI({
+    req(input$comp_go)
     
+    df_a <- load_time_data(input$comp_topic_a)
+    df_b <- load_time_data(input$comp_topic_b)
+    
+    mean_a <- mean(df_a$hits, na.rm = TRUE)
+    mean_b <- mean(df_b$hits, na.rm = TRUE)
+    
+    ratio <- mean_a/mean_b
+    
+    div(style = "
+        padding: 15px;
+        background-color:#fff5f5; 
+        border:2px solid #cc0033; 
+        border-radius:8px; 
+        width:60%;
+        font-size:16px;
+        color:#660000;",
+        HTML(paste0(
+          "<b>Ratio of Average Search Interest (A ÷ B)</b><br><br>",
+          "<b>", input$comp_topic_a, "</b> divided by <b>", input$comp_topic_b, "</b><br><br>",
+          "<b>Ratio = ", round(ratio, 2), "</b><br><br>",
+          
+          "<i>How to interpret this:</i><br>",
+          "A ratio of <b>1.0</b> means both topics had the same average interest.<br>",
+          "A ratio <b>greater than 1.0</b> means <b>", input$comp_topic_a, "</b> was searched more overall.<br>",
+          "A ratio <b>less than 1.0</b> means <b>", input$comp_topic_b, "</b> was searched more overall."
+        ))
+    )
+  })
+  
+  
   output$popularMap <- renderLeaflet({
     req(input$pop_go)
     
@@ -366,7 +411,7 @@ server <- function(input, output, session) {
         fillOpacity = 0.85,
         weight = 1, 
         color = "white",
-        popup = ~paste0("<b>", to_title_case(state_name), "</b><br>","Most Popular Topic:<br>",
+        popup = ~paste0("<b>", to_title_case(state_name), "</b><br>"," Most Popular Topic:<br>",
                         top_topic_title)
       ) |>
       addLegend("bottomright", 
